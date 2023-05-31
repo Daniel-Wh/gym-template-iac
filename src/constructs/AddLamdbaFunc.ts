@@ -5,7 +5,6 @@ import { TerraformStack, TerraformAsset, AssetType} from "cdktf";
 import * as aws from "@cdktf/provider-aws";
 
 interface LambdaFunctionConfig {
-  path: string,
   runtime: string,
   stageName: string,
   version: string,
@@ -39,8 +38,8 @@ export class LambdaStack extends TerraformStack {
 
     // Create Lambda executable
     const asset = new TerraformAsset(this, "lambda-asset", {
-      path: path.resolve(__dirname, 'src/utils/StarterLambda.zip'),
-      type: AssetType.ARCHIVE, // if left empty it infers directory and file
+      path: path.resolve(__dirname, 'StarterLambda.zip'),
+      type: AssetType.FILE, // if left empty it infers directory and file
     });
 
     // Create unique S3 bucket that hosts Lambda executable
