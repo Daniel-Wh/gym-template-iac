@@ -1,0 +1,5 @@
+node_modules
+.gen
+cdktf.out
+__tests__
+jest.config.js

@@ -1,0 +1,11 @@
+**/node_modules
+**/.gen
+**/cdktf.out
+**/package.json
+**/package-lock.json
+**/.eslintrc.json
+**/.npmrc
+**/.gitignore
+**/help
+**/setup.json
+**/tsconfig.json
