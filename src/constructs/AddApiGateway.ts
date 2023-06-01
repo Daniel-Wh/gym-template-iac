@@ -1,7 +1,5 @@
 import { Construct } from "constructs";
-import { TerraformStack } from "cdktf";
-import * as aws from "@cdktf/provider-aws";
-import { AwsProvider } from "@cdktf/provider-aws/lib/provider";
+import { apiGatewayRestApi } from "@cdktf/provider-aws";
 
 export interface ApiGatewayConfig {
     name: string,
@@ -10,15 +8,11 @@ export interface ApiGatewayConfig {
 
 
 
-export class AddApiGateway extends TerraformStack {
-    public createdApiGateway: aws.apiGatewayRestApi.ApiGatewayRestApi;
-    constructor(scope: Construct, name: string, config: ApiGatewayConfig) {
-        super(scope, name);
-        new AwsProvider(this, "aws", {
-            region: 'us-east-1'
-        })
-        const gateway = new aws.apiGatewayRestApi.ApiGatewayRestApi(this, config.name, {
-            name: `${config.env}-${config.name}`
+export class AddApiGateway {
+    public createdApiGateway: apiGatewayRestApi.ApiGatewayRestApi;
+    constructor(scope: Construct, config: ApiGatewayConfig) {
+        const gateway = new apiGatewayRestApi.ApiGatewayRestApi(scope, `${config.name}-${config.env}`, {
+            name: `${config.name}-${config.env}`
 
         })
 

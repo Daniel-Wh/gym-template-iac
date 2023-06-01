@@ -1,8 +1,6 @@
 import { Construct } from 'constructs';
 import { DynamodbTable } from "@cdktf/provider-aws/lib/dynamodb-table";
 import { region } from '../utils/CommonInterfaces';
-import { TerraformStack } from 'cdktf';
-import { AwsProvider } from '@cdktf/provider-aws/lib/provider';
 
 export interface IAddDynamoStore {
     name: string;
@@ -14,14 +12,9 @@ export interface IAddDynamoStore {
 
 }
 
-export class AddDynamoStore extends TerraformStack {
+export class AddDynamoStore {
     public createdTable;
-    constructor(scope: Construct, name: string, config: IAddDynamoStore) {
-        super(scope, name)
-
-        new AwsProvider(this, "aws", {
-            region: 'us-east-1'
-        })
+    constructor(scope: Construct, config: IAddDynamoStore) {
         const attributes = config.sortKeyName ? [{
             name: config.primaryKeyName,
             type: config.primaryKeyType ?? "S"
@@ -35,7 +28,7 @@ export class AddDynamoStore extends TerraformStack {
                 type: config.primaryKeyType ?? "S"
             },
         ]
-        this.createdTable = new DynamodbTable(this, config.name, {
+        this.createdTable = new DynamodbTable(scope, config.name, {
             name: config.name,
             hashKey: config.primaryKeyName,
             rangeKey: config.sortKeyName ?? undefined,

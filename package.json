@@ -9,6 +9,7 @@
     "get": "cdktf get",
     "build": "tsc",
     "synth": "cdktf synth",
+    "deploy": "cdktf deploy",
     "compile": "tsc --pretty",
     "watch": "tsc -w",
     "test": "jest",
