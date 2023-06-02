@@ -10,6 +10,9 @@ export interface ApiGatewayConfig {
 
 export class AddApiGateway {
     public createdApiGateway: apiGatewayRestApi.ApiGatewayRestApi;
+    get apiGw(): apiGatewayRestApi.ApiGatewayRestApi {
+        return this.createdApiGateway;
+    }
     constructor(scope: Construct, config: ApiGatewayConfig) {
         const gateway = new apiGatewayRestApi.ApiGatewayRestApi(scope, `${config.name}-${config.env}`, {
             name: `${config.name}-${config.env}`
@@ -17,8 +20,5 @@ export class AddApiGateway {
         })
 
         this.createdApiGateway = gateway;
-    }
-    public getGateway = () => {
-        return this.createdApiGateway;
     }
 }

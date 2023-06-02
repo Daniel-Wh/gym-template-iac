@@ -10,6 +10,53 @@ interface LambdaFunctionConfig {
     name: string
 }
 
+const lambdaRolePolicyDoc = {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ReadWriteTable",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "GetStreamRecords",
+            "Effect": "Allow",
+            "Action": "dynamodb:GetRecords",
+            "Resource": "arn:aws:dynamodb:*:*:table/*/stream/* "
+        },
+        {
+            "Sid": "WriteLogStreamsAndGroups",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CreateLogGroup",
+            "Effect": "Allow",
+            "Action": "logs:CreateLogGroup",
+            "Resource": "*"
+        },
+        {
+            "Sid": "invokeApis",
+            "Effect": "Allow",
+            "Action": "execute-api:Invoke",
+            "Resource": "*"
+        },
+    ]
+}
+
 const lambdaRolePolicy = {
     "Version": "2012-10-17",
     "Statement": [
@@ -19,7 +66,13 @@ const lambdaRolePolicy = {
                 "Service": "lambda.amazonaws.com"
             },
             "Effect": "Allow",
-            "Sid": ""
+        },
+        {
+            "Action": "sts:AssumeRole",
+            "Principal": {
+                "Service": "apigateway.amazonaws.com"
+            },
+            "Effect": "Allow",
         }
     ]
 };
@@ -29,7 +82,7 @@ export class LambdaStack {
     constructor(scope: Construct, name: string, config: LambdaFunctionConfig) {
         // Create Lambda executable
         const asset = new TerraformAsset(scope, `asset-${config.name}-${config.env}`, {
-            path: path.resolve(__dirname, 'StarterLambda.zip'),
+            path: path.resolve(__dirname, 'index.zip'),
             type: AssetType.FILE, // if left empty it infers directory and file
         });
 
@@ -44,17 +97,16 @@ export class LambdaStack {
             key: `${config.name}${config.env}/${asset.fileName}`,
             source: asset.path, // returns a posix path
         });
-
         // Create Lambda role
         const role = new aws.iamRole.IamRole(scope, `role-${config.name}-${config.env}`, {
             name: config.name,
-            assumeRolePolicy: JSON.stringify(lambdaRolePolicy)
-        });
-
-        // Add execution role for lambda to write to CloudWatch logs
-        new aws.iamRolePolicyAttachment.IamRolePolicyAttachment(scope, `policy-${config.name}-${config.env}`, {
-            policyArn: 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole',
-            role: role.name
+            assumeRolePolicy: JSON.stringify(lambdaRolePolicy),
+            inlinePolicy: [
+                {
+                    name: `policy-doc-${config.name}-${config.env}`,
+                    policy: JSON.stringify(lambdaRolePolicyDoc)
+                }
+            ]
         });
 
         // Create Lambda function

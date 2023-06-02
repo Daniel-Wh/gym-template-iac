@@ -1,3 +1,4 @@
+import { apiGatewayRestApiPolicy } from "@cdktf/provider-aws";
 import { ApiGatewayIntegration } from "@cdktf/provider-aws/lib/api-gateway-integration";
 import { ApiGatewayMethod } from "@cdktf/provider-aws/lib/api-gateway-method";
 import { ApiGatewayResource } from "@cdktf/provider-aws/lib/api-gateway-resource";
@@ -53,7 +54,10 @@ export class BackendNpInfraStack extends TerraformStack {
             this.userStatsTable = userStats.getTable();
             console.log("user stats table arn: " + this.userTable.arn);
             console.log("auth service arn: " + this.authService.arn)
+        } else {
+            // use data resource to get ARN of user services to give perms to other lambdas
         }
+
         const env = config.env
         // each env gets an apigateway and two lambdas, both of those lambdas need to be able to invoke
         // the user lambda
@@ -77,29 +81,29 @@ export class BackendNpInfraStack extends TerraformStack {
         })
 
         const apiGwResource = new ApiGatewayResource(this, `user-gw-resource-${env}`, {
-            restApiId: apiGw.getGateway().id,
-            parentId: apiGw.getGateway().rootResourceId,
+            restApiId: apiGw.apiGw.id,
+            parentId: apiGw.apiGw.rootResourceId,
             pathPart: 'user'
         })
         const apiGwUserMethod = new ApiGatewayMethod(this, `user-integration-method-${env}`, {
             authorization: 'NONE',
             httpMethod: 'ANY',
             resourceId: apiGwResource.id,
-            restApiId: apiGw.getGateway().id,
+            restApiId: apiGw.apiGw.id,
         })
         const apiGwClientResource = new ApiGatewayResource(this, `client-gw-resource-${env}`, {
-            restApiId: apiGw.getGateway().id,
-            parentId: apiGw.getGateway().rootResourceId,
+            restApiId: apiGw.apiGw.id,
+            parentId: apiGw.apiGw.rootResourceId,
             pathPart: 'client'
         })
         const apiGwClientMethod = new ApiGatewayMethod(this, `client-integration-method-${env}`, {
             authorization: 'NONE',
             httpMethod: 'ANY',
             resourceId: apiGwClientResource.id,
-            restApiId: apiGw.getGateway().id,
+            restApiId: apiGw.apiGw.id,
         })
         new ApiGatewayIntegration(this, `user-services-integration-${env}`, {
-            restApiId: apiGw.getGateway().id,
+            restApiId: apiGw.apiGw.id,
             resourceId: apiGwResource.id,
             httpMethod: apiGwUserMethod.httpMethod,
             integrationHttpMethod: 'ANY',
@@ -107,12 +111,31 @@ export class BackendNpInfraStack extends TerraformStack {
             uri: userServicesLambda.getFunc().invokeArn
         })
         new ApiGatewayIntegration(this, `client-services-integration-${env}`, {
-            restApiId: apiGw.getGateway().id,
+            restApiId: apiGw.apiGw.id,
             resourceId: apiGwClientResource.id,
             httpMethod: apiGwClientMethod.httpMethod,
             integrationHttpMethod: 'ANY',
             type: 'AWS_PROXY',
             uri: clientServicesLambda.getFunc().invokeArn
+        })
+
+        const apiGatewayPolicy = {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Action": "execute-api:Invoke",
+                    "Principal": "*",
+                    "Effect": "Allow",
+                    "Resource": [
+                        userServicesLambda.getFunc().invokeArn,
+                        clientServicesLambda.getFunc().invokeArn
+                    ]
+                }
+            ]
+        };
+        new apiGatewayRestApiPolicy.ApiGatewayRestApiPolicy(this, `backend-services-${env}-policy`, {
+            restApiId: apiGw.apiGw.id,
+            policy: JSON.stringify(apiGatewayPolicy)
         })
 
     }
