@@ -7,7 +7,8 @@ interface LambdaFunctionConfig {
     runtime: string,
     version: string,
     env: string,
-    name: string
+    name: string,
+    apiGwSourceArn: string
 }
 
 const lambdaRolePolicyDoc = {
@@ -61,21 +62,17 @@ const lambdaRolePolicy = {
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Action": "sts:AssumeRole",
-            "Principal": {
-                "Service": "lambda.amazonaws.com"
-            },
+            "Sid": "",
             "Effect": "Allow",
-        },
-        {
-            "Action": "sts:AssumeRole",
             "Principal": {
-                "Service": "apigateway.amazonaws.com"
+                "Service": [
+                    "lambda.amazonaws.com"
+                ]
             },
-            "Effect": "Allow",
+            "Action": "sts:AssumeRole"
         }
     ]
-};
+}
 
 export class LambdaStack {
     public createdFunc: aws.lambdaFunction.LambdaFunction;
@@ -109,6 +106,11 @@ export class LambdaStack {
             ]
         });
 
+        new aws.iamRolePolicyAttachment.IamRolePolicyAttachment(scope, `policy-attached-${config.name}-${config.env}`, {
+            policyArn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+            role: role.name
+        })
+
         // Create Lambda function
         const lambdaFunc = new aws.lambdaFunction.LambdaFunction(scope, `${config.name}-${config.env}`, {
             functionName: config.name,
@@ -118,6 +120,15 @@ export class LambdaStack {
             runtime: config.runtime,
             role: role.arn
         });
+
+        // add lambda permission to be executed by apiGateway
+        new aws.lambdaPermission.LambdaPermission(scope, `apigateway-perm-${config.name}-${config.env}`, {
+            statementId: 'allow-apigw-execution',
+            action: "lambda:InvokeFunction",
+            functionName: lambdaFunc.functionName,
+            principal: "apigateway.amazonaws.com",
+            sourceArn: `${config.apiGwSourceArn}`
+        })
 
         this.createdFunc = lambdaFunc
     }

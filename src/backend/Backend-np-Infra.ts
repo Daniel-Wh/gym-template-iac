@@ -1,4 +1,4 @@
-import { apiGatewayRestApiPolicy } from "@cdktf/provider-aws";
+import { apiGatewayDeployment, apiGatewayRestApiPolicy, apiGatewayStage } from "@cdktf/provider-aws";
 import { ApiGatewayIntegration } from "@cdktf/provider-aws/lib/api-gateway-integration";
 import { ApiGatewayMethod } from "@cdktf/provider-aws/lib/api-gateway-method";
 import { ApiGatewayResource } from "@cdktf/provider-aws/lib/api-gateway-resource";
@@ -25,14 +25,18 @@ export class BackendNpInfraStack extends TerraformStack {
             secretKey: process.env.SECRET_KEY
         })
 
-
+        const apiGw = new AddApiGateway(this, {
+            name: `backend-services`,
+            env: config.env
+        })
         if (config.env === "dev") {
 
             const authServiceLambda = new LambdaStack(this, 'auth-service-nonprod', {
                 name: 'auth-service-nonprod',
                 runtime: 'nodejs16.x',
                 version: '0.0',
-                env: 'dev'
+                env: 'dev',
+                apiGwSourceArn: `${apiGw.apiGw.executionArn}/*/*/*`
             })
             this.authService = authServiceLambda.getFunc();
             const userStore = new AddDynamoStore(this, {
@@ -66,76 +70,109 @@ export class BackendNpInfraStack extends TerraformStack {
             name: `user-services-${env}`,
             runtime: 'nodejs16.x',
             version: '0.0',
-            env: env
+            env: env,
+            apiGwSourceArn: `${apiGw.apiGw.executionArn}/*/*`
         })
         const clientServicesLambda = new LambdaStack(this, `client-services-${env}`, {
             name: `client-services-${env}`,
             runtime: 'nodejs16.x',
             version: '0.0',
-            env: env
+            env: env,
+            apiGwSourceArn: `${apiGw.apiGw.executionArn}/*/*`
         })
 
-        const apiGw = new AddApiGateway(this, {
-            name: `backend-services-${env}`,
-            env: env
-        })
 
         const apiGwResource = new ApiGatewayResource(this, `user-gw-resource-${env}`, {
             restApiId: apiGw.apiGw.id,
             parentId: apiGw.apiGw.rootResourceId,
-            pathPart: 'user'
+            pathPart: `user`,
+            dependsOn: [apiGw.apiGw]
         })
         const apiGwUserMethod = new ApiGatewayMethod(this, `user-integration-method-${env}`, {
             authorization: 'NONE',
             httpMethod: 'ANY',
             resourceId: apiGwResource.id,
             restApiId: apiGw.apiGw.id,
+            dependsOn: [apiGwResource]
+        })
+        const userIntegration = new ApiGatewayIntegration(this, `user-services-integration-${env}`, {
+            restApiId: apiGw.apiGw.id,
+            resourceId: apiGwResource.id,
+            httpMethod: apiGwUserMethod.httpMethod,
+            integrationHttpMethod: 'POST',
+            type: 'AWS_PROXY',
+            uri: userServicesLambda.getFunc().invokeArn,
+            dependsOn: [apiGwUserMethod]
         })
         const apiGwClientResource = new ApiGatewayResource(this, `client-gw-resource-${env}`, {
             restApiId: apiGw.apiGw.id,
             parentId: apiGw.apiGw.rootResourceId,
-            pathPart: 'client'
+            pathPart: `client`,
+            dependsOn: [apiGw.apiGw]
         })
         const apiGwClientMethod = new ApiGatewayMethod(this, `client-integration-method-${env}`, {
             authorization: 'NONE',
             httpMethod: 'ANY',
             resourceId: apiGwClientResource.id,
             restApiId: apiGw.apiGw.id,
+            dependsOn: [apiGwClientResource]
         })
-        new ApiGatewayIntegration(this, `user-services-integration-${env}`, {
-            restApiId: apiGw.apiGw.id,
-            resourceId: apiGwResource.id,
-            httpMethod: apiGwUserMethod.httpMethod,
-            integrationHttpMethod: 'ANY',
-            type: 'AWS_PROXY',
-            uri: userServicesLambda.getFunc().invokeArn
-        })
-        new ApiGatewayIntegration(this, `client-services-integration-${env}`, {
+
+        const clientIntegration = new ApiGatewayIntegration(this, `client-services-integration-${env}`, {
             restApiId: apiGw.apiGw.id,
             resourceId: apiGwClientResource.id,
             httpMethod: apiGwClientMethod.httpMethod,
-            integrationHttpMethod: 'ANY',
+            integrationHttpMethod: 'POST',
             type: 'AWS_PROXY',
-            uri: clientServicesLambda.getFunc().invokeArn
+            uri: clientServicesLambda.getFunc().invokeArn,
+            dependsOn: [apiGwClientMethod]
         })
+
+
 
         const apiGatewayPolicy = {
             "Version": "2012-10-17",
             "Statement": [
                 {
-                    "Action": "execute-api:Invoke",
+                    "Action": "lambda:InvokeFunction",
                     "Principal": "*",
                     "Effect": "Allow",
                     "Resource": [
-                        userServicesLambda.getFunc().invokeArn,
-                        clientServicesLambda.getFunc().invokeArn
+                        `${userServicesLambda.getFunc().invokeArn}/*/*`,
+                        `${clientServicesLambda.getFunc().invokeArn}/*/*`
                     ]
+                },
+                {
+                    "Action": "execute-api:Invoke",
+                    "Principal": "*",
+                    "Effect": "Allow",
+                    "Resource": "*",
                 }
             ]
         };
+
         new apiGatewayRestApiPolicy.ApiGatewayRestApiPolicy(this, `backend-services-${env}-policy`, {
             restApiId: apiGw.apiGw.id,
             policy: JSON.stringify(apiGatewayPolicy)
+        })
+        const deployment = new apiGatewayDeployment.ApiGatewayDeployment(this, `backend-gateway-${env}-${name}`, {
+            restApiId: apiGw.apiGw.id,
+            dependsOn: [
+                clientIntegration,
+                userIntegration
+            ],
+            lifecycle: {
+                createBeforeDestroy: true
+            }
+        })
+
+        new apiGatewayStage.ApiGatewayStage(this, 'backend-gateway-stage', {
+            deploymentId: deployment.id,
+            restApiId: apiGw.apiGw.id,
+            stageName: "dev",
+            lifecycle: {
+                createBeforeDestroy: true
+            }
         })
 
     }

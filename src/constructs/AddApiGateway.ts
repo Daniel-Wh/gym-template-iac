@@ -14,9 +14,11 @@ export class AddApiGateway {
         return this.createdApiGateway;
     }
     constructor(scope: Construct, config: ApiGatewayConfig) {
-        const gateway = new apiGatewayRestApi.ApiGatewayRestApi(scope, `${config.name}-${config.env}`, {
-            name: `${config.name}-${config.env}`
-
+        const gateway = new apiGatewayRestApi.ApiGatewayRestApi(scope, `${config.name}-${config.env}-gw`, {
+            name: `${config.name}-${config.env}`,
+            lifecycle: {
+                createBeforeDestroy: true
+            }
         })
 
         this.createdApiGateway = gateway;
