@@ -1,4 +1,3 @@
-import { apiGatewayDeployment, apiGatewayRestApiPolicy, apiGatewayStage, dataAwsLambdaFunction } from "@cdktf/provider-aws";
 import { AwsProvider } from "@cdktf/provider-aws/lib/provider";
 import { TerraformStack } from "cdktf";
 import { Construct } from "constructs";
@@ -7,6 +6,9 @@ import { AddDynamoStore } from "../constructs/AddDynamoStore";
 import { CreateLambdaFunc } from "../constructs/AddLamdbaFunc";
 import { CreateGatewayIntegrationForLambda } from "../constructs/GatewayIntegration";
 import { DataAwsLambdaFunction } from "@cdktf/provider-aws/lib/data-aws-lambda-function";
+import { ApiGatewayStage } from "@cdktf/provider-aws/lib/api-gateway-stage";
+import { ApiGatewayDeployment } from "@cdktf/provider-aws/lib/api-gateway-deployment";
+import { ApiGatewayRestApiPolicy } from "@cdktf/provider-aws/lib/api-gateway-rest-api-policy";
 
 export interface IBackendNpConfig {
     env: string;
@@ -108,11 +110,11 @@ export class BackendNpInfraStack extends TerraformStack {
             ]
         };
 
-        new apiGatewayRestApiPolicy.ApiGatewayRestApiPolicy(this, `backend-services-${env}-policy`, {
+        new ApiGatewayRestApiPolicy(this, `backend-services-${env}-policy`, {
             restApiId: apiGw.id,
             policy: JSON.stringify(apiGatewayPolicy)
         })
-        const deployment = new apiGatewayDeployment.ApiGatewayDeployment(this, `backend-gateway-${env}-${name}`, {
+        const deployment = new ApiGatewayDeployment(this, `backend-gateway-${env}-${name}`, {
             restApiId: apiGw.id,
             dependsOn: [
                 clientIntegration,
@@ -127,7 +129,7 @@ export class BackendNpInfraStack extends TerraformStack {
             }
         })
 
-        new apiGatewayStage.ApiGatewayStage(this, 'backend-gateway-stage', {
+        new ApiGatewayStage(this, 'backend-gateway-stage', {
             deploymentId: deployment.id,
             restApiId: apiGw.id,
             stageName: "dev",
