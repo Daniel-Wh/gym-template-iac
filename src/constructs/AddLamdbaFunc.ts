@@ -83,7 +83,7 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
 
     // Create Lambda executable
     const asset = new TerraformAsset(scope, `asset-${config.name}-${config.env}`, {
-        path: path.resolve(__dirname, 'index.zip'),
+        path: path.resolve(__dirname, 'main.zip'),
         type: AssetType.FILE, // if left empty it infers directory and file
     });
 
@@ -120,7 +120,7 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         functionName: config.name,
         s3Bucket: bucket.bucket,
         s3Key: lambdaArchive.key,
-        handler: 'index.handler',
+        handler: 'main',
         runtime: config.runtime,
         role: role.arn
     });

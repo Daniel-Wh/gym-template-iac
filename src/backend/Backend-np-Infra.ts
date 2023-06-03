@@ -29,7 +29,7 @@ export class BackendNpInfraStack extends TerraformStack {
 
             CreateLambdaFunc(this, {
                 name: 'auth-service-nonprod',
-                runtime: 'nodejs16.x',
+                runtime: 'go1.x',
                 version: '0.0',
                 env: 'dev',
                 apiGwSourceArn: `${apiGw.executionArn}/*/*/*`
@@ -63,14 +63,14 @@ export class BackendNpInfraStack extends TerraformStack {
         // make two apigateway resources and then make a method (any) for each and point the resource path to the correct lambda function
         const userServicesLambda = CreateLambdaFunc(this, {
             name: `user-services-${env}`,
-            runtime: 'nodejs16.x',
+            runtime: 'go1.x',
             version: '0.0',
             env: env,
             apiGwSourceArn: `${apiGw.executionArn}/*/*`
         })
         const clientServicesLambda = CreateLambdaFunc(this, {
             name: `client-services-${env}`,
-            runtime: 'nodejs16.x',
+            runtime: 'go1.x',
             version: '0.0',
             env: env,
             apiGwSourceArn: `${apiGw.executionArn}/*/*`
@@ -91,53 +91,6 @@ export class BackendNpInfraStack extends TerraformStack {
             name: 'client-integration',
             env: env
         })
-        // const apiGwResource = new ApiGatewayResource(this, `user-gw-resource-${env}`, {
-        //     restApiId: apiGw.apiGw.id,
-        //     parentId: apiGw.apiGw.rootResourceId,
-        //     pathPart: `user`,
-        //     dependsOn: [apiGw.apiGw]
-        // })
-        // const apiGwUserMethod = new ApiGatewayMethod(this, `user-integration-method-${env}`, {
-        //     authorization: 'NONE',
-        //     httpMethod: 'ANY',
-        //     resourceId: apiGwResource.id,
-        //     restApiId: apiGw.apiGw.id,
-        //     dependsOn: [apiGwResource]
-        // })
-        // const userIntegration = new ApiGatewayIntegration(this, `user-services-integration-${env}`, {
-        //     restApiId: apiGw.apiGw.id,
-        //     resourceId: apiGwResource.id,
-        //     httpMethod: apiGwUserMethod.httpMethod,
-        //     integrationHttpMethod: 'POST',
-        //     type: 'AWS_PROXY',
-        //     uri: userServicesLambda.getFunc().invokeArn,
-        //     dependsOn: [apiGwUserMethod]
-        // })
-        // const apiGwClientResource = new ApiGatewayResource(this, `client-gw-resource-${env}`, {
-        //     restApiId: apiGw.apiGw.id,
-        //     parentId: apiGw.apiGw.rootResourceId,
-        //     pathPart: `client`,
-        //     dependsOn: [apiGw.apiGw]
-        // })
-        // const apiGwClientMethod = new ApiGatewayMethod(this, `client-integration-method-${env}`, {
-        //     authorization: 'NONE',
-        //     httpMethod: 'ANY',
-        //     resourceId: apiGwClientResource.id,
-        //     restApiId: apiGw.apiGw.id,
-        //     dependsOn: [apiGwClientResource]
-        // })
-
-        // const clientIntegration = new ApiGatewayIntegration(this, `client-services-integration-${env}`, {
-        //     restApiId: apiGw.apiGw.id,
-        //     resourceId: apiGwClientResource.id,
-        //     httpMethod: apiGwClientMethod.httpMethod,
-        //     integrationHttpMethod: 'POST',
-        //     type: 'AWS_PROXY',
-        //     uri: clientServicesLambda.getFunc().invokeArn,
-        //     dependsOn: [apiGwClientMethod]
-        // })
-
-
 
         const apiGatewayPolicy = {
             "Version": "2012-10-17",
