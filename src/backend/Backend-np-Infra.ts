@@ -6,6 +6,7 @@ import { AddApiGateway } from "../constructs/AddApiGateway";
 import { AddDynamoStore } from "../constructs/AddDynamoStore";
 import { CreateLambdaFunc } from "../constructs/AddLamdbaFunc";
 import { CreateGatewayIntegrationForLambda } from "../constructs/GatewayIntegration";
+import { DataAwsLambdaFunction } from "@cdktf/provider-aws/lib/data-aws-lambda-function";
 
 export interface IBackendNpConfig {
     env: string;
@@ -50,11 +51,13 @@ export class BackendNpInfraStack extends TerraformStack {
             })
 
         } else {
-            new dataAwsLambdaFunction.DataAwsLambdaFunction(this, "auth-service-nonprod", {
+            new DataAwsLambdaFunction(this, "auth-service-nonprod", {
                 functionName: "auth-service-nonprod"
             })
 
-            // use data resource to get ARN of user services to give perms to other lambdas
+            // use data resource to get ARN of auth services to give perms to other lambdas to execute
+            // will need auth services lambda to set up apigateway integration at /user and change integration authorization to iam user
+            // to restrict access to only other lambdas
         }
 
         const env = config.env
@@ -95,15 +98,7 @@ export class BackendNpInfraStack extends TerraformStack {
         const apiGatewayPolicy = {
             "Version": "2012-10-17",
             "Statement": [
-                {
-                    "Action": "lambda:InvokeFunction",
-                    "Principal": "*",
-                    "Effect": "Allow",
-                    "Resource": [
-                        `${userServicesLambda.invokeArn}/*/*`,
-                        `${clientServicesLambda.invokeArn}/*/*`
-                    ]
-                },
+
                 {
                     "Action": "execute-api:Invoke",
                     "Principal": "*",
@@ -123,6 +118,10 @@ export class BackendNpInfraStack extends TerraformStack {
                 clientIntegration,
                 userIntegration
             ],
+            triggers: {
+                "client": clientIntegration.id,
+                "user": userIntegration.id
+            },
             lifecycle: {
                 createBeforeDestroy: true
             }
