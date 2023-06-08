@@ -1,8 +1,8 @@
-#GYM-TEMPLATE-IAC
+# GYM-TEMPLATE-IAC
 
 IaC project to programatically define infrustucture needed for gym-template product
 
-##Install
+## Install
 Terraform state is stored locally on the machine so the only install needs are to install
 the CDKTF package along with terraform.
 AWS credentials are stored in environment variables
