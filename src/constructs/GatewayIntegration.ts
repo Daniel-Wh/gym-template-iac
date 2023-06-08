@@ -2,7 +2,6 @@ import { ApiGatewayIntegration } from "@cdktf/provider-aws/lib/api-gateway-integ
 import { ApiGatewayMethod } from "@cdktf/provider-aws/lib/api-gateway-method";
 import { ApiGatewayResource } from "@cdktf/provider-aws/lib/api-gateway-resource";
 import { ApiGatewayRestApi } from "@cdktf/provider-aws/lib/api-gateway-rest-api";
-import { LambdaFunction } from "@cdktf/provider-aws/lib/lambda-function";
 import { Construct } from "constructs";
 
 export interface IGatewayIntegrationForLambda {
@@ -10,10 +9,12 @@ export interface IGatewayIntegrationForLambda {
     env: string;
     pathPart: string,
     apiGw: ApiGatewayRestApi;
-    lambda: LambdaFunction;
+    lambdaInvokeArn: string;
+    isPrivate: boolean;
 }
 
 export function CreateGatewayIntegrationForLambda(scope: Construct, config: IGatewayIntegrationForLambda) {
+    const authorization = config.isPrivate ? 'AWS_IAM' : 'NONE'
     const apiGwResource = new ApiGatewayResource(scope, `${config.pathPart}-gw-resource-${config.env}`, {
         restApiId: config.apiGw.id,
         parentId: config.apiGw.rootResourceId,
@@ -21,7 +22,7 @@ export function CreateGatewayIntegrationForLambda(scope: Construct, config: IGat
         dependsOn: [config.apiGw]
     })
     const apiGwUserMethod = new ApiGatewayMethod(scope, `${config.pathPart}-integration-method-${config.env}`, {
-        authorization: 'NONE',
+        authorization,
         httpMethod: 'ANY',
         resourceId: apiGwResource.id,
         restApiId: config.apiGw.id,
@@ -33,7 +34,7 @@ export function CreateGatewayIntegrationForLambda(scope: Construct, config: IGat
         httpMethod: apiGwUserMethod.httpMethod,
         integrationHttpMethod: 'POST',
         type: 'AWS_PROXY',
-        uri: config.lambda.invokeArn,
+        uri: config.lambdaInvokeArn,
         dependsOn: [apiGwUserMethod]
     })
 

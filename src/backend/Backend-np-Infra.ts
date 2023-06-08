@@ -9,6 +9,9 @@ import { DataAwsLambdaFunction } from "@cdktf/provider-aws/lib/data-aws-lambda-f
 import { ApiGatewayStage } from "@cdktf/provider-aws/lib/api-gateway-stage";
 import { ApiGatewayDeployment } from "@cdktf/provider-aws/lib/api-gateway-deployment";
 import { ApiGatewayRestApiPolicy } from "@cdktf/provider-aws/lib/api-gateway-rest-api-policy";
+import { DynamodbTable } from "@cdktf/provider-aws/lib/dynamodb-table";
+import { DataAwsDynamodbTable } from "@cdktf/provider-aws/lib/data-aws-dynamodb-table";
+import { IDynamoResourcePolicyConfig } from "../utils/ResourcePolicies";
 
 export interface IBackendNpConfig {
     env: string;
@@ -17,7 +20,10 @@ export class BackendNpInfraStack extends TerraformStack {
 
     constructor(scope: Construct, name: string, config: IBackendNpConfig) {
         super(scope, name)
-
+        let tokenTable;
+        let usersNonProd;
+        let userStatsNonProd;
+        let authServicesLambda;
         new AwsProvider(this, "aws", {
             region: 'us-east-1',
             accessKey: process.env.ACCESS_KEY,
@@ -29,22 +35,43 @@ export class BackendNpInfraStack extends TerraformStack {
             env: config.env
         })
         if (config.env === "dev") {
-
-            CreateLambdaFunc(this, {
+            tokenTable = new DynamodbTable(this, 'Token', {
+                name: 'Token',
+                hashKey: 'Token',
+                rangeKey: 'Timestamp',
+                attribute: [
+                    {
+                        name: 'Timestamp',
+                        type: 'N'
+                    },
+                    {
+                        name: "Token",
+                        type: "S"
+                    }
+                ],
+                billingMode: "PAY_PER_REQUEST"
+            })
+            authServicesLambda = CreateLambdaFunc(this, {
                 name: 'auth-service-nonprod',
                 runtime: 'go1.x',
                 version: '0.0',
                 env: 'dev',
-                apiGwSourceArn: `${apiGw.executionArn}/*/*/*`
+                apiGwSourceArn: `${apiGw.executionArn}/*/*/*`,
+                tableResources: [{
+                    dynamoArns: [tokenTable.arn],
+                    actions: ["dynamodb:*"]
+                }]
             })
-            new AddDynamoStore(this, {
+
+
+            usersNonProd = AddDynamoStore(this, {
                 name: 'Users-nonprod',
                 primaryKeyName: 'Email',
                 primaryKeyType: "S",
                 sortKeyName: 'Gym',
                 sortKeyType: 'S',
             })
-            new AddDynamoStore(this, {
+            userStatsNonProd = AddDynamoStore(this, {
                 name: 'User-Stats-nonprod',
                 primaryKeyName: 'Id',
                 primaryKeyType: "S",
@@ -53,16 +80,36 @@ export class BackendNpInfraStack extends TerraformStack {
             })
 
         } else {
-            new DataAwsLambdaFunction(this, "auth-service-nonprod", {
+            authServicesLambda = new DataAwsLambdaFunction(this, "auth-service-nonprod", {
                 functionName: "auth-service-nonprod"
+            })
+            tokenTable = new DataAwsDynamodbTable(this, "Token", {
+                name: "Token"
+            })
+            usersNonProd = new DataAwsDynamodbTable(this, "Token", {
+                name: "Token"
+            })
+            userStatsNonProd = new DataAwsDynamodbTable(this, "Token", {
+                name: "Token"
             })
 
             // use data resource to get ARN of auth services to give perms to other lambdas to execute
             // will need auth services lambda to set up apigateway integration at /user and change integration authorization to iam user
             // to restrict access to only other lambdas
         }
-
         const env = config.env
+
+        const readOnlyTableConfig: IDynamoResourcePolicyConfig = {
+            dynamoArns: [tokenTable.arn, usersNonProd.arn],
+            actions: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:ConditionCheckItem", "dynamodb:Scan"]
+        }
+
+        const openTables: IDynamoResourcePolicyConfig = {
+            dynamoArns: [userStatsNonProd.arn],
+            actions: ["dynamo:*"]
+        }
+
+
         // each env gets an apigateway and two lambdas, both of those lambdas need to be able to invoke
         // the user lambda
         // make two apigateway resources and then make a method (any) for each and point the resource path to the correct lambda function
@@ -71,30 +118,43 @@ export class BackendNpInfraStack extends TerraformStack {
             runtime: 'go1.x',
             version: '0.0',
             env: env,
-            apiGwSourceArn: `${apiGw.executionArn}/*/*`
+            apiGwSourceArn: `${apiGw.executionArn}/*/*`,
+            tableResources: [readOnlyTableConfig, openTables]
         })
         const clientServicesLambda = CreateLambdaFunc(this, {
             name: `client-services-${env}`,
             runtime: 'go1.x',
             version: '0.0',
             env: env,
-            apiGwSourceArn: `${apiGw.executionArn}/*/*`
+            apiGwSourceArn: `${apiGw.executionArn}/*/*`,
+            tableResources: [readOnlyTableConfig, openTables]
         })
 
         const userIntegration = CreateGatewayIntegrationForLambda(this, {
             apiGw: apiGw,
-            lambda: userServicesLambda,
+            lambdaInvokeArn: userServicesLambda.invokeArn,
             pathPart: 'user',
             name: 'user-integration',
-            env: env
+            env: env,
+            isPrivate: false
         })
 
         const clientIntegration = CreateGatewayIntegrationForLambda(this, {
             apiGw: apiGw,
-            lambda: clientServicesLambda,
+            lambdaInvokeArn: clientServicesLambda.invokeArn,
             pathPart: 'client',
             name: 'client-integration',
-            env: env
+            env: env,
+            isPrivate: false
+        })
+
+        const authIntegration = CreateGatewayIntegrationForLambda(this, {
+            apiGw: apiGw,
+            lambdaInvokeArn: authServicesLambda.invokeArn,
+            pathPart: 'auth',
+            name: 'auth-integration',
+            env: env,
+            isPrivate: true
         })
 
         const apiGatewayPolicy = {
@@ -118,11 +178,13 @@ export class BackendNpInfraStack extends TerraformStack {
             restApiId: apiGw.id,
             dependsOn: [
                 clientIntegration,
-                userIntegration
+                userIntegration,
+                authIntegration
             ],
             triggers: {
                 "client": clientIntegration.id,
-                "user": userIntegration.id
+                "user": userIntegration.id,
+                "auth": authIntegration.id
             },
             lifecycle: {
                 createBeforeDestroy: true

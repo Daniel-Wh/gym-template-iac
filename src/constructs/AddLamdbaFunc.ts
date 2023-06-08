@@ -7,80 +7,48 @@ import { IamRole } from "@cdktf/provider-aws/lib/iam-role";
 import { LambdaPermission } from "@cdktf/provider-aws/lib/lambda-permission";
 import { LambdaFunction } from "@cdktf/provider-aws/lib/lambda-function";
 import { IamRolePolicyAttachment } from "@cdktf/provider-aws/lib/iam-role-policy-attachment";
+import { GetDynamoResourcePolicy, IDynamoResourcePolicyConfig } from "../utils/ResourcePolicies";
 
 export interface LambdaFunctionConfig {
     runtime: string,
     version: string,
     env: string,
     name: string,
-    apiGwSourceArn: string
+    apiGwSourceArn: string,
+    tableResources: IDynamoResourcePolicyConfig[],
 }
 
-const lambdaRolePolicyDoc = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "ReadWriteTable",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:BatchGetItem",
-                "dynamodb:GetItem",
-                "dynamodb:Query",
-                "dynamodb:Scan",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PutItem",
-                "dynamodb:UpdateItem"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "GetStreamRecords",
-            "Effect": "Allow",
-            "Action": "dynamodb:GetRecords",
-            "Resource": "arn:aws:dynamodb:*:*:table/*/stream/* "
-        },
-        {
-            "Sid": "WriteLogStreamsAndGroups",
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogStream",
-                "logs:PutLogEvents"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CreateLogGroup",
-            "Effect": "Allow",
-            "Action": "logs:CreateLogGroup",
-            "Resource": "*"
-        },
-        {
-            "Sid": "invokeApis",
-            "Effect": "Allow",
-            "Action": "execute-api:Invoke",
-            "Resource": "*"
-        },
-    ]
-}
 
-const lambdaRolePolicy = {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "",
-            "Effect": "Allow",
-            "Principal": {
-                "Service": [
-                    "lambda.amazonaws.com"
-                ]
-            },
-            "Action": "sts:AssumeRole"
-        }
-    ]
-}
 
 export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig) {
-
+    const lambdaStatementArr = []
+    config.tableResources.map(val => lambdaStatementArr.push(GetDynamoResourcePolicy(val)))
+    lambdaStatementArr.push({
+        "Sid": "invokeApis",
+        "Effect": "Allow",
+        "Action": "execute-api:Invoke",
+        "Resource": "*"
+    })
+    const lambdaRolePolicyDoc = {
+        "Version": "2012-10-17",
+        "Statement": lambdaStatementArr
+    }
+    console.log(lambdaRolePolicyDoc);
+    const lambdaRolePolicy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "",
+                "Effect": "Allow",
+                "Principal": {
+                    "Service": [
+                        "lambda.amazonaws.com"
+                    ]
+                },
+                "Action": "sts:AssumeRole"
+            }
+        ]
+    }
     // Create Lambda executable
     const asset = new TerraformAsset(scope, `asset-${config.name}-${config.env}`, {
         path: path.resolve(__dirname, 'main.zip'),
@@ -104,7 +72,6 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         assumeRolePolicy: JSON.stringify(lambdaRolePolicy),
         inlinePolicy: [
             {
-                name: `policy-doc-${config.name}-${config.env}`,
                 policy: JSON.stringify(lambdaRolePolicyDoc)
             }
         ]
