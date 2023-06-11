@@ -6,6 +6,14 @@ on:
             lambda_function_name:
                 required: true
                 type: string
+        secrets:
+            BUCKET_LOCATION:
+                description: s3 uri for the bucket
+                required: true
+            AWS_ACCESS_KEY_ID:
+                required: true
+            AWS_SECRET_ACCESS_KEY:
+                required: true
 
 jobs:
     build_lint_deploy:
