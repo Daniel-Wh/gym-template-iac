@@ -33,10 +33,6 @@ jobs:
               run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -a -o main main.go
             - name: Zip build
               run: zip -r main.zip main
-            - name: Confirm build exist
-              run: |
-                [-a main.zip] && echo "file exist"
-              shell: bash
             - name: Install AWS CLI
               run: |
                 sudo apt-get install -y awscli
