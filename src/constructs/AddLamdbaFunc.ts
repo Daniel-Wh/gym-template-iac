@@ -57,13 +57,13 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
 
     // Create unique S3 bucket that hosts Lambda executable
     const bucket = new S3Bucket(scope, `bucket-${config.name}-${config.env}`, {
-        bucketPrefix: `${config.env}-${config.name}`,
+        bucketPrefix: `${config.name}`,
     });
 
     // Upload Lambda zip file to newly created S3 bucket
     const lambdaArchive = new S3Object(scope, `archive-${config.name}-${config.env}`, {
         bucket: bucket.bucket,
-        key: `${config.name}${config.env}/${asset.fileName}`,
+        key: `${config.name}/${asset.fileName}`,
         source: asset.path, // returns a posix path
     });
     // Create Lambda role

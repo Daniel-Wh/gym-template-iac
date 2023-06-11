@@ -12,6 +12,9 @@ import { ApiGatewayRestApiPolicy } from "@cdktf/provider-aws/lib/api-gateway-res
 import { DynamodbTable } from "@cdktf/provider-aws/lib/dynamodb-table";
 import { DataAwsDynamodbTable } from "@cdktf/provider-aws/lib/data-aws-dynamodb-table";
 import { IDynamoResourcePolicyConfig } from "../utils/ResourcePolicies";
+import { IamUser } from "@cdktf/provider-aws/lib/iam-user";
+import { IamUserPolicy } from "@cdktf/provider-aws/lib/iam-user-policy";
+import { IamAccessKey } from "@cdktf/provider-aws/lib/iam-access-key";
 
 export interface IBackendNpConfig {
     env: string;
@@ -63,6 +66,31 @@ export class BackendNpInfraStack extends TerraformStack {
                 }]
             })
 
+            // role for github pre-release and deploy
+            const githubUserRole = new IamUser(this, 'github_user_role', {
+                name: 'github_s3_read_only_deploy_lambda'
+            })
+            new IamAccessKey(this, 'github_user_access_key', {
+                user: githubUserRole.name
+            })
+            const githubActionsPolicy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:PutObject",
+                            "lambda:UpdateFunctionCode"
+                        ],
+                        "Resource": "*"
+                    }
+                ]
+
+            }
+            new IamUserPolicy(this, 'github_user_policy', {
+                user: githubUserRole.name,
+                policy: JSON.stringify(githubActionsPolicy)
+            })
 
             usersNonProd = AddDynamoStore(this, {
                 name: 'Users-nonprod',

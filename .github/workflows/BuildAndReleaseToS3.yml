@@ -1,0 +1,57 @@
+name: Build and Release Golang Lambda Function to S3
+
+on:
+    workflow_call:
+        inputs:
+            bucket_location:
+                required: true
+                type: string
+            lambda_function_name:
+                required: true
+                type: string
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+    
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v3
+            - name: Set up Go
+              uses: actions/setup-go@v2
+              with:
+                go-version: 1.20
+            - name: Verify dependencies
+              run: go mod verify
+            - name: Install linter
+              run: go install golang.org/x/lint/golint@latest
+            - name: Lint Project
+              run: golint ./...
+            - name: Build for S3
+              run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -a -o main main.go
+            - name: Zip build
+              run: zip -r main.zip main
+            - name: Install AWS CLI
+              run: |
+                sudo apt-get update
+                sudo apt-get install -y awscli
+            - name: Login to AWS
+              env: 
+                AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+              run: |
+                aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+            - name: Upload build to S3
+              run: aws s3 cp main.zip s3://${{inputs.bucket_location}}/${{github.sha}}/
+              env: 
+                AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            - name: Update lambda with new build
+              run: |
+                aws lambda update-function-code \
+                --function-name  ${{inputs.lambda_function_name}} \
+                --zip-file fileb://main.zip
+              env: 
+                AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  
