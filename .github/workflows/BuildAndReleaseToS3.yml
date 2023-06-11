@@ -40,13 +40,12 @@ jobs:
             - name: Install AWS CLI
               run: |
                 sudo apt-get install -y awscli
-            - name: Login to AWS
-              env: 
-                AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-                AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-              run: |
-                aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-                aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+            - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v2
+              with:
+                aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+                aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+                aws-region: us-east-1
             - name: Upload build to S3
               run: aws s3 cp main.zip $BUCKET_LOCATION/${{github.sha}}/
               env: 
