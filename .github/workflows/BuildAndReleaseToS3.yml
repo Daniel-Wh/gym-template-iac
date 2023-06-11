@@ -33,6 +33,10 @@ jobs:
               run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -a -o main main.go
             - name: Zip build
               run: zip -r main.zip main
+            - name: Confirm build exist
+              run: |
+                [-a main.zip] && echo "file exist"
+              shell: bash
             - name: Install AWS CLI
               run: |
                 sudo apt-get install -y awscli
@@ -44,9 +48,7 @@ jobs:
                 aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
                 aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
             - name: Upload build to S3
-              run: |
-                [-a main.zip] && echo "file exist"
-                aws s3 cp main.zip $BUCKET_LOCATION/${{github.sha}}/
+              run: aws s3 cp main.zip $BUCKET_LOCATION/${{github.sha}}/
               env: 
                 AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
                 AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
