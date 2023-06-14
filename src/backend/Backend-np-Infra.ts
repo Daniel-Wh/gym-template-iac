@@ -79,7 +79,8 @@ export class BackendNpInfraStack extends TerraformStack {
                     {
                         "Effect": "Allow",
                         "Action": [
-                            "s3:PutObject",
+                            "s3:*",
+                            "s3-object-lambda:*",
                             "lambda:UpdateFunctionCode"
                         ],
                         "Resource": "*"
