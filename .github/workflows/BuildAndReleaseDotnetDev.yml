@@ -1,4 +1,4 @@
-name: Build and Release Golang Lambda Function to S3
+name: Build and Release Dotnet Lambda Function to S3
 
 on:
     workflow_call:
