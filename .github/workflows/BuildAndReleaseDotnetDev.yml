@@ -36,8 +36,8 @@ jobs:
               run: |
                 cd $GITHUB_WORKSPACE/${{inputs.project_path}}
                 dotnet tool install -g Amazon.Lambda.Tools
+                export DOTNET_ROOT="$PATH:/home/runner/.dotnet"
                 export PATH="$PATH:/home/runner/.dotnet/tools"
-                export DOTNET_ROOT=/home/runner/.dotnet
                 pwd;ls
                 echo -e "\n\n\t Starting build\t\n\n"
                 dotnet lambda package "build.zip" -c Debug
