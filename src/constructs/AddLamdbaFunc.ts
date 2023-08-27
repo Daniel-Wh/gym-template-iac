@@ -8,6 +8,7 @@ import { LambdaPermission } from "@cdktf/provider-aws/lib/lambda-permission";
 import { LambdaFunction } from "@cdktf/provider-aws/lib/lambda-function";
 import { IamRolePolicyAttachment } from "@cdktf/provider-aws/lib/iam-role-policy-attachment";
 import { GetDynamoResourcePolicy, IDynamoResourcePolicyConfig } from "../utils/ResourcePolicies";
+import { IamPolicy } from "@cdktf/provider-aws/lib/iam-policy";
 
 export interface LambdaFunctionConfig {
     runtime: string,
@@ -69,16 +70,15 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
     // Create Lambda role
     const role = new IamRole(scope, `role-${config.name}-${config.env}`, {
         name: config.name,
-        assumeRolePolicy: JSON.stringify(lambdaRolePolicy),
-        inlinePolicy: [
-            {
-                policy: JSON.stringify(lambdaRolePolicyDoc)
-            }
-        ]
+        assumeRolePolicy: JSON.stringify(lambdaRolePolicy)
     });
 
+    const policy = new IamPolicy(scope, `policy-${config.name}-${config.env}`, {
+        policy: JSON.stringify(lambdaRolePolicyDoc),
+    })
+
     new IamRolePolicyAttachment(scope, `policy-attached-${config.name}-${config.env}`, {
-        policyArn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+        policyArn: policy.arn,
         role: role.name
     })
 
@@ -87,7 +87,8 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         functionName: config.name,
         s3Bucket: bucket.bucket,
         s3Key: lambdaArchive.key,
-        handler: `${config.entryPoint}:LambdaEntryPoint::FunctionHandlerAsync`,
+        handler: config.entryPoint,
+        timeout: 60000,
         runtime: config.runtime,
         role: role.arn
     });

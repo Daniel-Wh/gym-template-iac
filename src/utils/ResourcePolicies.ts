@@ -5,8 +5,8 @@ export interface IDynamoResourcePolicyConfig {
 export function GetDynamoResourcePolicy(config: IDynamoResourcePolicyConfig) {
     return {
         Effect: "Allow",
-        action: config.actions,
-        resource: config.dynamoArns
+        Action: config.actions,
+        Resource: config.dynamoArns
     }
 
 }

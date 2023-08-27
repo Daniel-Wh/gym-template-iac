@@ -54,15 +54,29 @@ export class BackendNpInfraStack extends TerraformStack {
                 ],
                 billingMode: "PAY_PER_REQUEST"
             })
+            usersNonProd = AddDynamoStore(this, {
+                name: 'Users-nonprod',
+                primaryKeyName: 'Email',
+                primaryKeyType: "S",
+                sortKeyName: 'Gym',
+                sortKeyType: 'S',
+            })
+            userStatsNonProd = AddDynamoStore(this, {
+                name: 'User-Stats-nonprod',
+                primaryKeyName: 'Id',
+                primaryKeyType: "S",
+                sortKeyName: 'Gym',
+                sortKeyType: 'S',
+            })
             authServicesLambda = CreateLambdaFunc(this, {
                 name: 'auth-service-nonprod',
-                entryPoint: 'auth.services:auth.services',
+                entryPoint: 'auth.services::auth.services.LambdaEntryPoint::FunctionHandlerAsync',
                 runtime: 'dotnet6',
                 version: '0.0',
                 env: 'dev',
                 apiGwSourceArn: `${apiGw.executionArn}/*/*/*`,
                 tableResources: [{
-                    dynamoArns: [tokenTable.arn],
+                    dynamoArns: [tokenTable.arn, usersNonProd.arn],
                     actions: ["dynamodb:*"]
                 }]
             })
@@ -95,20 +109,6 @@ export class BackendNpInfraStack extends TerraformStack {
                 policy: JSON.stringify(githubActionsPolicy)
             })
 
-            usersNonProd = AddDynamoStore(this, {
-                name: 'Users-nonprod',
-                primaryKeyName: 'Email',
-                primaryKeyType: "S",
-                sortKeyName: 'Gym',
-                sortKeyType: 'S',
-            })
-            userStatsNonProd = AddDynamoStore(this, {
-                name: 'User-Stats-nonprod',
-                primaryKeyName: 'Id',
-                primaryKeyType: "S",
-                sortKeyName: 'Gym',
-                sortKeyType: 'S',
-            })
 
         } else {
             authServicesLambda = new DataAwsLambdaFunction(this, "auth-service-nonprod", {
