@@ -39,8 +39,7 @@ jobs:
                 export PATH="$PATH:/home/runner/.dotnet/tools"
                 export DOTNET_ROOT=/home/runner/.dotnet
                 config="Debug"
-                dotnet build --configuration $config
-                file build.zip
+                dotnet build --configuration $config --no-restore
                 dotnet lambda package build.zip -c $config
             - name: Uploading artifacts
               uses: actions/upload-artifact@v3
