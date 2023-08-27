@@ -38,9 +38,12 @@ jobs:
                 dotnet tool install -g Amazon.Lambda.Tools
                 export PATH="$PATH:/home/runner/.dotnet/tools"
                 export DOTNET_ROOT=/home/runner/.dotnet
+                pwd;ls
+                echo -e "\n\n\t Starting build\t\n\n"
                 config="Debug"
-                dotnet build --configuration $config --no-restore
-                dotnet lambda package build.zip -c $config
+                dotnet build --configuration Debug --no-restore
+                pwd;ls
+                dotnet lambda package "build.zip" -c Debug
             - name: Uploading artifacts
               uses: actions/upload-artifact@v3
               with:
