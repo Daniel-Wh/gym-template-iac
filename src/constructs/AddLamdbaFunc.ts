@@ -14,6 +14,7 @@ export interface LambdaFunctionConfig {
     version: string,
     env: string,
     name: string,
+    entryPoint: string,
     apiGwSourceArn: string,
     tableResources: IDynamoResourcePolicyConfig[],
 }
@@ -51,7 +52,7 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
     }
     // Create Lambda executable
     const asset = new TerraformAsset(scope, `asset-${config.name}-${config.env}`, {
-        path: path.resolve(__dirname, 'main.zip'),
+        path: path.resolve(__dirname, 'publish.zip'),
         type: AssetType.FILE, // if left empty it infers directory and file
     });
 
@@ -87,7 +88,7 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         functionName: config.name,
         s3Bucket: bucket.bucket,
         s3Key: lambdaArchive.key,
-        handler: 'main',
+        handler: `${config.entryPoint}:LambdaEntryPoint::FunctionHandlerAsync`,
         runtime: config.runtime,
         role: role.arn
     });

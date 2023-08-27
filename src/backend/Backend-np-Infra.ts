@@ -39,7 +39,7 @@ export class BackendNpInfraStack extends TerraformStack {
         })
         if (config.env === "dev") {
             tokenTable = new DynamodbTable(this, 'Token', {
-                name: 'Token',
+                name: 'Token-Nonprod',
                 hashKey: 'Token',
                 rangeKey: 'Timestamp',
                 attribute: [
@@ -56,7 +56,8 @@ export class BackendNpInfraStack extends TerraformStack {
             })
             authServicesLambda = CreateLambdaFunc(this, {
                 name: 'auth-service-nonprod',
-                runtime: 'go1.x',
+                entryPoint: 'auth.services:auth.services',
+                runtime: 'dotnet6',
                 version: '0.0',
                 env: 'dev',
                 apiGwSourceArn: `${apiGw.executionArn}/*/*/*`,
@@ -73,6 +74,7 @@ export class BackendNpInfraStack extends TerraformStack {
             new IamAccessKey(this, 'github_user_access_key', {
                 user: githubUserRole.name
             })
+
             const githubActionsPolicy = {
                 "Version": "2012-10-17",
                 "Statement": [
@@ -113,7 +115,7 @@ export class BackendNpInfraStack extends TerraformStack {
                 functionName: "auth-service-nonprod"
             })
             tokenTable = new DataAwsDynamodbTable(this, "Token", {
-                name: "Token"
+                name: "Token-Nonprod"
             })
             usersNonProd = new DataAwsDynamodbTable(this, "Token", {
                 name: "Token"
@@ -144,7 +146,8 @@ export class BackendNpInfraStack extends TerraformStack {
         // make two apigateway resources and then make a method (any) for each and point the resource path to the correct lambda function
         const userServicesLambda = CreateLambdaFunc(this, {
             name: `user-services-${env}`,
-            runtime: 'go1.x',
+            entryPoint: 'user.services:user.services',
+            runtime: 'dotnet6',
             version: '0.0',
             env: env,
             apiGwSourceArn: `${apiGw.executionArn}/*/*`,
@@ -152,7 +155,8 @@ export class BackendNpInfraStack extends TerraformStack {
         })
         const clientServicesLambda = CreateLambdaFunc(this, {
             name: `client-services-${env}`,
-            runtime: 'go1.x',
+            entryPoint: 'client.services:client.services',
+            runtime: 'dotnet6',
             version: '0.0',
             env: env,
             apiGwSourceArn: `${apiGw.executionArn}/*/*`,
