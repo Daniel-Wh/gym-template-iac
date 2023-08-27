@@ -34,7 +34,6 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         "Version": "2012-10-17",
         "Statement": lambdaStatementArr
     }
-    console.log(lambdaRolePolicyDoc);
     const lambdaRolePolicy = {
         "Version": "2012-10-17",
         "Statement": [
@@ -58,7 +57,7 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
 
     // Create unique S3 bucket that hosts Lambda executable
     const bucket = new S3Bucket(scope, `bucket-${config.name}-${config.env}`, {
-        bucketPrefix: `${config.name}`,
+        bucketPrefix: config.name,
     });
 
     // Upload Lambda zip file to newly created S3 bucket
