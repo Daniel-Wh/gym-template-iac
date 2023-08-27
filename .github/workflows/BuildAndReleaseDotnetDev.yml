@@ -23,7 +23,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Cloning repository
-            - uses: actions/checkout@v3
+              uses: actions/checkout@v3
             - name: Setup dotnet
               uses: actions/setup-dotnet@v3
               with:
@@ -52,7 +52,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
           - name: Cloning repository
-          - uses: actions/checkout@v3
+            uses: actions/checkout@v3
           - name: Setup dotnet
             uses: actions/setup-dotnet@v3
             with:
@@ -64,10 +64,10 @@ jobs:
           - name: running unit tests
             run: dotnet test
     Release-To-Dev:
-        runs-on: ubuntu-latests
+        runs-on: ubuntu-latest
         steps:
           - uses: actions/download-artifact@master
-          - name: Download build artifacts
+            name: Download build artifacts
             with:
               name: build
               path: .
