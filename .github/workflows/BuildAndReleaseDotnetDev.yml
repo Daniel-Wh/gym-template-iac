@@ -40,9 +40,6 @@ jobs:
                 export DOTNET_ROOT=/home/runner/.dotnet
                 pwd;ls
                 echo -e "\n\n\t Starting build\t\n\n"
-                config="Debug"
-                dotnet build --configuration Debug --no-restore
-                pwd;ls
                 dotnet lambda package "build.zip" -c Debug
             - name: Uploading artifacts
               uses: actions/upload-artifact@v3
