@@ -30,7 +30,7 @@ jobs:
                 dotnet-version: 6.0.x
             - name: Restoring dotnet packaging
               run: |
-                cd $GITHUB_WORKSPACE/$inputs.project_path
+                cd $GITHUB_WORKSPACE
                 dotnet restore
             - name: Building dotnet packages
               run: |
