@@ -40,8 +40,8 @@ jobs:
                 export DOTNET_ROOT=/home/runner/.dotnet
                 config="Debug"
                 dotnet build --configuration $config
-                file "build.zip"
-                dotnet lambda package "build.zip" -c $config
+                file build.zip
+                dotnet lambda package build.zip -c $config
             - name: Uploading artifacts
               uses: actions/upload-artifact@v3
               with:
