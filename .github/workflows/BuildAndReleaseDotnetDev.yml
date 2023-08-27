@@ -37,9 +37,6 @@ jobs:
               run: dotnet publish --configuration Release --output ./publish
             - name: Zip build
               run: zip -r publish.zip ./publish
-            - name: Install AWS CLI
-              run: |
-                sudo apt-get install -y awscli
             - name: Configure AWS credentials
               uses: aws-actions/configure-aws-credentials@v2
               with:
