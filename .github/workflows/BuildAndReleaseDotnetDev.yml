@@ -47,7 +47,7 @@ jobs:
                 aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
                 aws-region: us-east-1
             - name: Upload build to S3
-              run: aws s3 cp publish.zip $BUCKET_LOCATION/${{github.sha}}/
+              run: aws s3 cp publish.zip $BUCKET_LOCATION${{github.sha}}/
               env: 
                 AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
                 AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
