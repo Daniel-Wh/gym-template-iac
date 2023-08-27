@@ -6,6 +6,9 @@ on:
             lambda_function_name:
                 required: true
                 type: string
+            project_name:
+                required: true
+                type: string
         secrets:
             BUCKET_LOCATION:
                 description: s3 uri for the bucket
@@ -27,7 +30,7 @@ jobs:
             - name: Install dependencies
               run: dotnet restore
             - name: Build
-              run: dotnet build --configuration Release --no-restore
+              run: dotnet build ${{inputs.project_name}} --configuration Release --no-restore
             - name: Test
               run: dotnet test --no-restore --verbosity normal
             - name: Describe contents
