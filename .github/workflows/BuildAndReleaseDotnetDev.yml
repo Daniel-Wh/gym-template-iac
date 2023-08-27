@@ -43,7 +43,7 @@ jobs:
                 file "build.zip"
                 dotnet lambda package "build.zip" -c $config
             - name: Uploading artifacts
-              uses: actions/upload-artifacts@v2
+              uses: actions/upload-artifact@v3
               with:
                 name: build
                 path: ${{inputs.project_path}}/build.zip
@@ -63,10 +63,12 @@ jobs:
             run: dotnet build --configuration Debug --no-restore
           - name: running unit tests
             run: dotnet test
+        needs:
+          - dotnet_api_build
     Release-To-Dev:
         runs-on: ubuntu-latest
         steps:
-          - uses: actions/download-artifact@master
+          - uses: actions/download-artifact@v3
             name: Download build artifacts
             with:
               name: build
@@ -90,4 +92,7 @@ jobs:
               --zip-file fileb://build.zip
             env: 
               AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-              AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}  
+              AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        needs:
+          - dotnet_api_build
+          - unit-tests
