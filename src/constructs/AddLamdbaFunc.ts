@@ -1,6 +1,6 @@
 import * as path from "path";
 import { Construct } from "constructs";
-import { TerraformAsset, AssetType } from "cdktf";
+import { TerraformAsset, AssetType, Fn } from "cdktf";
 import { S3Bucket } from "@cdktf/provider-aws/lib/s3-bucket";
 import { S3Object } from "@cdktf/provider-aws/lib/s3-object";
 import { IamRole } from "@cdktf/provider-aws/lib/iam-role";
@@ -9,6 +9,8 @@ import { LambdaFunction } from "@cdktf/provider-aws/lib/lambda-function";
 import { IamRolePolicyAttachment } from "@cdktf/provider-aws/lib/iam-role-policy-attachment";
 import { GetDynamoResourcePolicy, IDynamoResourcePolicyConfig } from "../utils/ResourcePolicies";
 import { IamPolicy } from "@cdktf/provider-aws/lib/iam-policy";
+import { DataAwsSecretsmanagerSecret } from "@cdktf/provider-aws/lib/data-aws-secretsmanager-secret";
+import { DataAwsSecretsmanagerSecretVersion } from "@cdktf/provider-aws/lib/data-aws-secretsmanager-secret-version";
 
 export interface LambdaFunctionConfig {
     runtime: string,
@@ -29,6 +31,12 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         "Sid": "invokeApis",
         "Effect": "Allow",
         "Action": "execute-api:Invoke",
+        "Resource": "*"
+    })
+    config.name.includes("auth") && lambdaStatementArr.push({
+        "Sid": "getSecretValue",
+        "Effect": "Allow",
+        "Action": "secretsmanager:GetSecretValue",
         "Resource": "*"
     })
     const lambdaRolePolicyDoc = {
@@ -82,16 +90,35 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         role: role.name
     })
 
+    const isAuthServices = config.name.includes("auth")
+    let SIGNINGKEY = "";
+
+    if (isAuthServices) {
+        const secret = new DataAwsSecretsmanagerSecret(scope, "SIGNINGKEYSECRET", {
+            name: "JWTSIGNINGKEY"
+        })
+        const key = new DataAwsSecretsmanagerSecretVersion(scope, "SIGNINGKEYSECRETVALUE", {
+            secretId: secret.id
+        })
+        SIGNINGKEY = Fn.jsonencode(key.secretString)
+
+    }
     // Create Lambda function
     const lambdaFunc = new LambdaFunction(scope, `${config.name}-${config.env}`, {
         functionName: config.name,
         s3Bucket: bucket.bucket,
         s3Key: lambdaArchive.key,
         handler: config.entryPoint,
-        timeout: 60000,
+        timeout: 600,
         runtime: config.runtime,
-        role: role.arn
+        role: role.arn,
+        environment: {
+            variables: {
+                SIGNINGKEY
+            }
+        }
     });
+
 
     // add lambda permission to be executed by apiGateway
     new LambdaPermission(scope, `apigateway-perm-${config.name}-${config.env}`, {
