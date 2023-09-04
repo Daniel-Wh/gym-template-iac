@@ -36,7 +36,7 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
     config.name.includes("auth") && lambdaStatementArr.push({
         "Sid": "getSecretValue",
         "Effect": "Allow",
-        "Action": "secretsmanager:GetSecretValue",
+        "Action": ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"],
         "Resource": "*"
     })
     const lambdaRolePolicyDoc = {
