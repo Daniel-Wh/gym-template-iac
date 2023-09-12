@@ -33,7 +33,7 @@ export function CreateLambdaFunc(scope: Construct, config: LambdaFunctionConfig)
         "Action": "execute-api:Invoke",
         "Resource": "*"
     })
-    config.name.includes("auth") && lambdaStatementArr.push({
+    lambdaStatementArr.push({
         "Sid": "getSecretValue",
         "Effect": "Allow",
         "Action": ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"],

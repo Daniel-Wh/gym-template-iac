@@ -9,7 +9,6 @@ import { DataAwsLambdaFunction } from "@cdktf/provider-aws/lib/data-aws-lambda-f
 import { ApiGatewayStage } from "@cdktf/provider-aws/lib/api-gateway-stage";
 import { ApiGatewayDeployment } from "@cdktf/provider-aws/lib/api-gateway-deployment";
 import { ApiGatewayRestApiPolicy } from "@cdktf/provider-aws/lib/api-gateway-rest-api-policy";
-import { DynamodbTable } from "@cdktf/provider-aws/lib/dynamodb-table";
 import { DataAwsDynamodbTable } from "@cdktf/provider-aws/lib/data-aws-dynamodb-table";
 import { IDynamoResourcePolicyConfig } from "../utils/ResourcePolicies";
 import { IamUser } from "@cdktf/provider-aws/lib/iam-user";
@@ -23,8 +22,8 @@ export class BackendNpInfraStack extends TerraformStack {
 
     constructor(scope: Construct, name: string, config: IBackendNpConfig) {
         super(scope, name)
-        let tokenTable;
         let usersNonProd;
+        let usersTableNonProd;
         let userStatsNonProd;
         let authServicesLambda;
         new AwsProvider(this, "aws", {
@@ -38,24 +37,15 @@ export class BackendNpInfraStack extends TerraformStack {
             env: config.env
         })
         if (config.env === "dev") {
-            tokenTable = new DynamodbTable(this, 'Token', {
-                name: 'Token-Nonprod',
-                hashKey: 'Token',
-                rangeKey: 'Timestamp',
-                attribute: [
-                    {
-                        name: 'Timestamp',
-                        type: 'N'
-                    },
-                    {
-                        name: "Token",
-                        type: "S"
-                    }
-                ],
-                billingMode: "PAY_PER_REQUEST"
+            usersTableNonProd = AddDynamoStore(this, {
+                name: 'Users-nonprod',
+                primaryKeyName: 'Email',
+                primaryKeyType: "S",
+                sortKeyName: 'Gym',
+                sortKeyType: 'S',
             })
             usersNonProd = AddDynamoStore(this, {
-                name: 'Users-nonprod',
+                name: 'Users-Table-nonprod',
                 primaryKeyName: 'Email',
                 primaryKeyType: "S",
                 sortKeyName: 'Gym',
@@ -76,7 +66,7 @@ export class BackendNpInfraStack extends TerraformStack {
                 env: 'dev',
                 apiGwSourceArn: `${apiGw.executionArn}/*/*/*`,
                 tableResources: [{
-                    dynamoArns: [tokenTable.arn, usersNonProd.arn],
+                    dynamoArns: [usersNonProd.arn],
                     actions: ["dynamodb:*"]
                 }]
             })
@@ -111,16 +101,17 @@ export class BackendNpInfraStack extends TerraformStack {
 
 
         } else {
+            //TODO: update these when beyond dev env
             authServicesLambda = new DataAwsLambdaFunction(this, "auth-service-nonprod", {
                 functionName: "auth-service-nonprod"
-            })
-            tokenTable = new DataAwsDynamodbTable(this, "Token", {
-                name: "Token-Nonprod"
             })
             usersNonProd = new DataAwsDynamodbTable(this, "Token", {
                 name: "Token"
             })
             userStatsNonProd = new DataAwsDynamodbTable(this, "Token", {
+                name: "Token"
+            })
+            usersTableNonProd = new DataAwsDynamodbTable(this, "Token", {
                 name: "Token"
             })
 
@@ -131,12 +122,12 @@ export class BackendNpInfraStack extends TerraformStack {
         const env = config.env
 
         const readOnlyTableConfig: IDynamoResourcePolicyConfig = {
-            dynamoArns: [tokenTable.arn, usersNonProd.arn],
+            dynamoArns: [usersNonProd.arn],
             actions: ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:ConditionCheckItem", "dynamodb:Scan"]
         }
 
         const openTables: IDynamoResourcePolicyConfig = {
-            dynamoArns: [userStatsNonProd.arn],
+            dynamoArns: [userStatsNonProd.arn, usersTableNonProd.arn],
             actions: ["dynamo:*"]
         }
 
@@ -146,7 +137,7 @@ export class BackendNpInfraStack extends TerraformStack {
         // make two apigateway resources and then make a method (any) for each and point the resource path to the correct lambda function
         const userServicesLambda = CreateLambdaFunc(this, {
             name: `user-services-${env}`,
-            entryPoint: 'user.services:user.services',
+            entryPoint: 'User.Services::User.Services.LambdaEntryPoint::FunctionHandlerAsync',
             runtime: 'dotnet6',
             version: '0.0',
             env: env,
@@ -155,7 +146,7 @@ export class BackendNpInfraStack extends TerraformStack {
         })
         const clientServicesLambda = CreateLambdaFunc(this, {
             name: `client-services-${env}`,
-            entryPoint: 'client.services:client.services',
+            entryPoint: 'Client.Services::Client.Services.LambdaEntryPoint::FunctionHandlerAsync',
             runtime: 'dotnet6',
             version: '0.0',
             env: env,
